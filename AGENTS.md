@@ -8,7 +8,7 @@ task REP_SG_SETTLEMENT → Cloudera staging → risk dashboards.
 ## Topology & tools (lab)
 - Elasticsearch: http://localhost:9200 — index `payments-logs-*` (app, deploy, kafka-lag, replicate telemetry). Use MCP tool `search_es`.
 - Postgres: postgresql://ocbc_ro:readonlypass@localhost:5432/settlement (READ-ONLY user). `psql -c "EXPLAIN ANALYZE ..."`.
-- Kafka (Redpanda): `rpk topic describe settlement.fees`, `rpk group describe fee-aggregator`.
+- Kafka (Redpanda): `rpk topic describe settlement.fees`, `rpk group describe fee-aggregator`. If `rpk` is not on PATH, run it via the lab container: `cd ~/incident-lab && docker compose exec -T redpanda rpk ...` (prefix `sudo` where required).
 - Jenkins (mock): GET http://localhost:8085/api/jobs/payments-fee-service-deploy/builds — deploy history with commits.
 - Rollback: POST http://localhost:8085/api/jobs/rollback-<build>/run — **policy: ask** (needs approver).
 
