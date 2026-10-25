@@ -1,0 +1,148 @@
+{
+  "permissionRules": {
+    "version": 1,
+    "rules": [
+      {
+        "id": "bank/kubectl-prod-mutations-blocked",
+        "decision": "block",
+        "reason": "Production mutations go through the pipeline (Jenkins/Tekton) only. No agent, human or otherwise, mutates prod with kubectl directly. Change-advisory policy PAY-OPS-12.",
+        "match": {
+          "prefix": [
+            "kubectl",
+            [
+              "delete",
+              "rollout",
+              "scale",
+              "apply",
+              "patch",
+              "replace",
+              "edit",
+              "label",
+              "annotate",
+              "drain",
+              "cordon"
+            ]
+          ]
+        },
+        "tests": {
+          "match": [
+            "kubectl rollout undo deployment/payments-fee-service -n prod",
+            "kubectl delete pod fee-7f9-x -n prod-sg",
+            "kubectl scale deployment/fee --replicas=0 -n prod"
+          ],
+          "noMatch": [
+            "kubectl get pods -n prod",
+            "kubectl logs fee-7f9-x -n prod",
+            "kubectl describe deploy payments-fee-service -n prod"
+          ]
+        }
+      },
+      {
+        "id": "bank/kubectl-read-only-allow",
+        "decision": "allow",
+        "reason": "Incident investigation needs live cluster state; reads are unrestricted.",
+        "match": {
+          "prefix": [
+            "kubectl",
+            [
+              "get",
+              "describe",
+              "logs",
+              "top",
+              "explain"
+            ]
+          ]
+        },
+        "tests": {
+          "match": [
+            "kubectl get pods -n prod -o wide",
+            "kubectl logs fee-7f9-x -n prod --tail=100"
+          ],
+          "noMatch": [
+            "kubectl delete pod fee-7f9-x -n prod",
+            "kubectl edit deploy fee -n prod"
+          ]
+        }
+      },
+      {
+        "id": "bank/jenkins-rollback-ask",
+        "decision": "ask",
+        "reason": "Rollback is a production change: requires named human approver (change-advisory delegate) even at High autonomy.",
+        "match": {
+          "prefix": [
+            "curl",
+            "-X",
+            "POST"
+          ]
+        },
+        "tests": {
+          "match": [
+            "curl -X POST http://localhost:8085/api/jobs/rollback-4177/run"
+          ],
+          "noMatch": [
+            "curl -s http://localhost:8085/api/jobs/payments-fee-service-deploy/builds"
+          ]
+        }
+      },
+      {
+        "id": "bank/git-push-ask",
+        "decision": "ask",
+        "reason": "Remote Git changes are reviewed; fix branches need a human OK before they leave the machine.",
+        "match": {
+          "prefix": [
+            "git",
+            "push"
+          ]
+        },
+        "tests": {
+          "match": [
+            "git push origin fix/fee-index-path"
+          ],
+          "noMatch": [
+            "git status",
+            "git log --oneline"
+          ]
+        }
+      },
+      {
+        "id": "bank/psql-readonly-allow",
+        "decision": "allow",
+        "reason": "DB access is via the ocbc_ro read-only role; EXPLAIN/SELECT are the investigation path.",
+        "match": {
+          "prefix": [
+            "psql"
+          ]
+        },
+        "tests": {
+          "match": [
+            "psql -d settlement -c SELECT_1",
+            "psql -h localhost -U ocbc_ro settlement"
+          ],
+          "noMatch": [
+            "mysql -e drop-table"
+          ]
+        }
+      },
+      {
+        "id": "bank/terraform-destroy-blocked",
+        "decision": "block",
+        "reason": "Infrastructure destruction is never an agent action; IaC changes land via reviewed PR + pipeline.",
+        "match": {
+          "prefix": [
+            "terraform",
+            "destroy"
+          ]
+        },
+        "tests": {
+          "match": [
+            "terraform destroy -auto-approve"
+          ],
+          "noMatch": [
+            "terraform plan",
+            "terraform validate"
+          ]
+        }
+      }
+    ]
+  }
+}
