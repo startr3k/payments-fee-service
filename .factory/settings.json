@@ -65,26 +65,6 @@
         }
       },
       {
-        "id": "bank/jenkins-rollback-ask",
-        "decision": "ask",
-        "reason": "Rollback is a production change: requires named human approver (change-advisory delegate) even at High autonomy.",
-        "match": {
-          "prefix": [
-            "curl",
-            "-X",
-            "POST"
-          ]
-        },
-        "tests": {
-          "match": [
-            "curl -X POST http://localhost:8085/api/jobs/rollback-4177/run"
-          ],
-          "noMatch": [
-            "curl -s http://localhost:8085/api/jobs/payments-fee-service-deploy/builds"
-          ]
-        }
-      },
-      {
         "id": "bank/git-push-ask",
         "decision": "ask",
         "reason": "Remote Git changes are reviewed; fix branches need a human OK before they leave the machine.",
@@ -140,6 +120,102 @@
           "noMatch": [
             "terraform plan",
             "terraform validate"
+          ]
+        }
+      },
+      {
+        "id": "bank/curl-read-allow",
+        "decision": "allow",
+        "reason": "Read-only observability queries (ES, Jenkins GET) are the investigation path; mutating curl forms are separately gated.",
+        "match": {
+          "prefix": [
+            "curl",
+            [
+              "-s",
+              "-sS"
+            ]
+          ]
+        },
+        "tests": {
+          "match": [
+            "curl -s http://localhost:9200/_cluster/health",
+            "curl -s http://localhost:8085/api/jobs/payments-fee-service-deploy/builds",
+            "curl -sS localhost:9200/payments-logs-2026.10.26/_count"
+          ],
+          "noMatch": [
+            "curl -X POST http://localhost:8085/api/jobs/rollback-4177/run"
+          ]
+        }
+      },
+      {
+        "id": "bank/curl-post-ask",
+        "decision": "ask",
+        "reason": "Any curl that writes (POST or --data) is a production change surface: rollback via Jenkins needs a named approver. Change-advisory policy PAY-OPS-12.",
+        "match": {
+          "prefix": [
+            "curl",
+            "-X",
+            "POST"
+          ]
+        },
+        "tests": {
+          "match": [
+            "curl -X POST http://localhost:8085/api/jobs/rollback-4177/run"
+          ],
+          "noMatch": [
+            "curl -s http://localhost:9200/_cluster/health"
+          ]
+        }
+      },
+      {
+        "id": "bank/curl-s-post-ask",
+        "decision": "ask",
+        "reason": "Any curl that writes (POST or --data) is a production change surface: rollback via Jenkins needs a named approver. Change-advisory policy PAY-OPS-12.",
+        "match": {
+          "prefix": [
+            "curl",
+            [
+              "-s",
+              "-sS"
+            ],
+            "-X",
+            "POST"
+          ]
+        },
+        "tests": {
+          "match": [
+            "curl -s -X POST http://localhost:8085/api/jobs/rollback-4177/run",
+            "curl -sS -X POST http://localhost:8085/api/jobs/rollback-4177/run"
+          ],
+          "noMatch": [
+            "curl -s http://localhost:9200/_cluster/health"
+          ]
+        }
+      },
+      {
+        "id": "bank/curl-data-ask",
+        "decision": "ask",
+        "reason": "Any curl that writes (POST or --data) is a production change surface: rollback via Jenkins needs a named approver. Change-advisory policy PAY-OPS-12.",
+        "match": {
+          "prefix": [
+            "curl",
+            [
+              "-s",
+              "-sS"
+            ],
+            [
+              "--data",
+              "--data-binary"
+            ]
+          ]
+        },
+        "tests": {
+          "match": [
+            "curl -s --data @payload.json http://localhost:8085/api/jobs/rollback-4177/run",
+            "curl -sS --data-binary @body http://localhost:8085/api/jobs/rollback-4177/run"
+          ],
+          "noMatch": [
+            "curl -s http://localhost:9200/_cluster/health"
           ]
         }
       }
