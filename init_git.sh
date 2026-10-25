@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Initialize the payments-fee-service git repo with baseline + BAD commit (a1b9c2f story).
+# Initialize the payments-fee-service git repo with baseline + BAD commit (5904ad1 story).
 set -euo pipefail
 cd "$(dirname "$0")"
 git init -q 2>/dev/null || true

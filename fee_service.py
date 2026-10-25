@@ -5,7 +5,7 @@ FEE_QUERY_INDEXED = "SELECT rate FROM fee_rules WHERE rule_key = %s AND effectiv
 FEE_QUERY_LIKE = "SELECT rate FROM fee_rules WHERE rule_key LIKE '%%' || %s || '%%' AND effective_date <= %s ORDER BY effective_date DESC LIMIT 1"
 
 def get_fee_rate(conn, rule_key, on):
-    """Look up the applicable fee rate. BAD-COMMIT a1b9c2f switched to the LIKE variant,
+    """Look up the applicable fee rate. BAD-COMMIT 5904ad1 switched to the LIKE variant,
     which defeats the (planned) index and forces a seq scan on 200k rows."""
     sql = FEE_QUERY_LIKE if _bad_path_enabled() else FEE_QUERY_INDEXED
     with conn.cursor() as cur:
