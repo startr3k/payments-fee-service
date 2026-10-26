@@ -18,7 +18,7 @@ if [[ ! -f "$SECRET_FILE" ]]; then
   exit 1
 fi
 
-PAYLOAD="${1:-{\"incident\":\"INC-4371\",\"handoff\":\"triage-complete-awaiting-recovery-approval\"}}"
+PAYLOAD="${1:-{\"incident\":\"INC-4371\",\"ticket\":\"PS-2\",\"handoff\":\"triage-complete-approval-recorded-on-ticket\"}}"
 
 curl -sS -X POST "$WEBHOOK_URL" \
   -H "Content-Type: application/json" \
