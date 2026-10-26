@@ -218,6 +218,27 @@
             "curl -s http://localhost:9200/_cluster/health"
           ]
         }
+      },
+      {
+        "id": "bank/runbook-recovery-handoff-allow",
+        "decision": "allow",
+        "reason": "Runbook RB-4371-H1: the named recovery-handoff script may fire the Recovery Handler automation webhook. Its only effect is to create a recovery session that itself stops at the approval gate; raw curl POST remains gated by PAY-OPS-12.",
+        "match": {
+          "prefix": [
+            "bash",
+            "runbook/recovery-handoff.sh"
+          ]
+        },
+        "tests": {
+          "match": [
+            "bash runbook/recovery-handoff.sh",
+            "bash runbook/recovery-handoff.sh payload.json"
+          ],
+          "noMatch": [
+            "bash other-script.sh",
+            "curl -s -X POST http://localhost:8085/api/jobs/rollback-4177/run"
+          ]
+        }
       }
     ]
   }
