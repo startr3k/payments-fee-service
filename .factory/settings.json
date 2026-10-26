@@ -239,6 +239,26 @@
             "curl -s -X POST http://localhost:8085/api/jobs/rollback-4177/run"
           ]
         }
+      },
+      {
+        "id": "bank/runbook-execute-rollback-allow",
+        "decision": "allow",
+        "reason": "Runbook RB-4371-R1: executes the change-advisory-APPROVED rollback for INC-4371 via the Jenkins rollback job. The human approval is recorded on the incident ticket BEFORE this runbook is invoked; the runbook performs exactly the approved change and nothing else. Policy PAY-OPS-12 approved-change channel.",
+        "match": {
+          "prefix": [
+            "bash",
+            "runbook/execute-rollback.sh"
+          ]
+        },
+        "tests": {
+          "match": [
+            "bash runbook/execute-rollback.sh"
+          ],
+          "noMatch": [
+            "bash runbook/recovery-handoff.sh",
+            "curl -s -X POST http://localhost:8085/api/jobs/rollback-4177/run"
+          ]
+        }
       }
     ]
   }
