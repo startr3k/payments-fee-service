@@ -17,3 +17,4 @@ task REP_SG_SETTLEMENT → Cloudera staging → risk dashboards.
 - `kubectl delete`, `DROP`, `TRUNCATE` are blocked by org policy — do not attempt.
 - Root-cause claims must cite evidence: ES query + timestamp, commit SHA, query plan, lag numbers.
 - Known incident family: deploy-induced latency → check deploy marker in ES, then fee_rules query plan, then Kafka lag.
+- **Report contract:** every triage report must end with a section titled `Recovery recommendation — REQUIRES HUMAN APPROVAL`, naming the single recommended action (e.g. rollback to build #4176 via Jenkins job `rollback-4177`) and stating that no recovery action will be taken without an explicit human approver. Never present recovery as something the agent will do itself.
