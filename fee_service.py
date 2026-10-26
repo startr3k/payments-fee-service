@@ -16,4 +16,4 @@ def get_fee_rate(conn, rule_key, on):
 def _bad_path_enabled():
     # deploy flag from build #4177; rollback restores the equality path
     import os
-    return os.environ.get("FEE_LIKE_ROLLOUT", "on") == "on"
+    return os.environ.get("FEE_LIKE_ROLLOUT", "off") == "on"
