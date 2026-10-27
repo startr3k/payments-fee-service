@@ -5,260 +5,57 @@
       {
         "id": "bank/kubectl-prod-mutations-blocked",
         "decision": "block",
-        "reason": "Production mutations go through the pipeline (Jenkins/Tekton) only. No agent, human or otherwise, mutates prod with kubectl directly. Change-advisory policy PAY-OPS-12.",
+        "reason": "Production mutations go through the pipeline only. No agent, human or otherwise, mutates prod with kubectl directly. Change-advisory policy PAY-OPS-12.",
         "match": {
           "prefix": [
             "kubectl",
-            [
-              "delete",
-              "rollout",
-              "scale",
-              "apply",
-              "patch",
-              "replace",
-              "edit",
-              "label",
-              "annotate",
-              "drain",
-              "cordon"
-            ]
+            ["delete", "rollout", "scale", "apply", "patch", "replace", "edit", "label", "annotate", "drain", "cordon"]
           ]
         },
         "tests": {
           "match": [
-            "kubectl rollout undo deployment/payments-fee-service -n prod",
-            "kubectl delete pod fee-7f9-x -n prod-sg",
-            "kubectl scale deployment/fee --replicas=0 -n prod"
+            "kubectl rollout undo deployment/paynow-status-service -n prod-sg",
+            "kubectl scale deployment/paynow-status-service --replicas=2 -n prod-sg"
           ],
-          "noMatch": [
-            "kubectl get pods -n prod",
-            "kubectl logs fee-7f9-x -n prod",
-            "kubectl describe deploy payments-fee-service -n prod"
-          ]
+          "noMatch": ["kubectl get pods -n prod-sg", "kubectl logs paynow-status-service-7d9f -n prod-sg"]
         }
       },
       {
         "id": "bank/kubectl-read-only-allow",
         "decision": "allow",
         "reason": "Incident investigation needs live cluster state; reads are unrestricted.",
-        "match": {
-          "prefix": [
-            "kubectl",
-            [
-              "get",
-              "describe",
-              "logs",
-              "top",
-              "explain"
-            ]
-          ]
-        },
+        "match": { "prefix": ["kubectl", ["get", "describe", "logs", "top", "explain"]] },
         "tests": {
-          "match": [
-            "kubectl get pods -n prod -o wide",
-            "kubectl logs fee-7f9-x -n prod --tail=100"
-          ],
-          "noMatch": [
-            "kubectl delete pod fee-7f9-x -n prod",
-            "kubectl edit deploy fee -n prod"
-          ]
+          "match": ["kubectl get pods -n prod-sg -o wide"],
+          "noMatch": ["kubectl delete pod paynow-status-service-7d9f -n prod-sg"]
         }
       },
       {
-        "id": "bank/git-push-ask",
-        "decision": "ask",
-        "reason": "Remote Git changes are reviewed; fix branches need a human OK before they leave the machine.",
-        "match": {
-          "prefix": [
-            "git",
-            "push"
-          ]
-        },
+        "id": "bank/git-force-push-blocked",
+        "decision": "block",
+        "reason": "Published history is never rewritten.",
+        "match": { "prefix": ["git", "push", ["--force", "-f", "--force-with-lease"]] },
         "tests": {
-          "match": [
-            "git push origin fix/fee-index-path"
-          ],
-          "noMatch": [
-            "git status",
-            "git log --oneline"
-          ]
+          "match": ["git push --force origin main", "git push -f origin fix/status-backoff"],
+          "noMatch": ["git push origin fix/status-backoff"]
         }
       },
       {
-        "id": "bank/psql-readonly-allow",
-        "decision": "allow",
-        "reason": "DB access is via the ocbc_ro read-only role; EXPLAIN/SELECT are the investigation path.",
-        "match": {
-          "prefix": [
-            "psql"
-          ]
-        },
+        "id": "bank/git-push-main-blocked",
+        "decision": "block",
+        "reason": "main changes only through a reviewed pull request.",
+        "match": { "prefix": ["git", "push", "origin", ["main", "HEAD:main"]] },
         "tests": {
-          "match": [
-            "psql -d settlement -c SELECT_1",
-            "psql -h localhost -U ocbc_ro settlement"
-          ],
-          "noMatch": [
-            "mysql -e drop-table"
-          ]
+          "match": ["git push origin main", "git push origin HEAD:main"],
+          "noMatch": ["git push origin fix/status-backoff", "git push -u origin fix/status-backoff"]
         }
       },
       {
         "id": "bank/terraform-destroy-blocked",
         "decision": "block",
         "reason": "Infrastructure destruction is never an agent action; IaC changes land via reviewed PR + pipeline.",
-        "match": {
-          "prefix": [
-            "terraform",
-            "destroy"
-          ]
-        },
-        "tests": {
-          "match": [
-            "terraform destroy -auto-approve"
-          ],
-          "noMatch": [
-            "terraform plan",
-            "terraform validate"
-          ]
-        }
-      },
-      {
-        "id": "bank/curl-read-allow",
-        "decision": "allow",
-        "reason": "Read-only observability queries (ES, Jenkins GET) are the investigation path; mutating curl forms are separately gated.",
-        "match": {
-          "prefix": [
-            "curl",
-            [
-              "-s",
-              "-sS"
-            ]
-          ]
-        },
-        "tests": {
-          "match": [
-            "curl -s http://localhost:9200/_cluster/health",
-            "curl -s http://localhost:8085/api/jobs/payments-fee-service-deploy/builds",
-            "curl -sS localhost:9200/payments-logs-2026.10.26/_count"
-          ],
-          "noMatch": [
-            "curl -X POST http://localhost:8085/api/jobs/rollback-4177/run"
-          ]
-        }
-      },
-      {
-        "id": "bank/curl-post-ask",
-        "decision": "ask",
-        "reason": "Any curl that writes (POST or --data) is a production change surface: rollback via Jenkins needs a named approver. Change-advisory policy PAY-OPS-12.",
-        "match": {
-          "prefix": [
-            "curl",
-            "-X",
-            "POST"
-          ]
-        },
-        "tests": {
-          "match": [
-            "curl -X POST http://localhost:8085/api/jobs/rollback-4177/run"
-          ],
-          "noMatch": [
-            "curl -s http://localhost:9200/_cluster/health"
-          ]
-        }
-      },
-      {
-        "id": "bank/curl-s-post-ask",
-        "decision": "ask",
-        "reason": "Any curl that writes (POST or --data) is a production change surface: rollback via Jenkins needs a named approver. Change-advisory policy PAY-OPS-12.",
-        "match": {
-          "prefix": [
-            "curl",
-            [
-              "-s",
-              "-sS"
-            ],
-            "-X",
-            "POST"
-          ]
-        },
-        "tests": {
-          "match": [
-            "curl -s -X POST http://localhost:8085/api/jobs/rollback-4177/run",
-            "curl -sS -X POST http://localhost:8085/api/jobs/rollback-4177/run"
-          ],
-          "noMatch": [
-            "curl -s http://localhost:9200/_cluster/health"
-          ]
-        }
-      },
-      {
-        "id": "bank/curl-data-ask",
-        "decision": "ask",
-        "reason": "Any curl that writes (POST or --data) is a production change surface: rollback via Jenkins needs a named approver. Change-advisory policy PAY-OPS-12.",
-        "match": {
-          "prefix": [
-            "curl",
-            [
-              "-s",
-              "-sS"
-            ],
-            [
-              "--data",
-              "--data-binary"
-            ]
-          ]
-        },
-        "tests": {
-          "match": [
-            "curl -s --data @payload.json http://localhost:8085/api/jobs/rollback-4177/run",
-            "curl -sS --data-binary @body http://localhost:8085/api/jobs/rollback-4177/run"
-          ],
-          "noMatch": [
-            "curl -s http://localhost:9200/_cluster/health"
-          ]
-        }
-      },
-      {
-        "id": "bank/runbook-recovery-handoff-allow",
-        "decision": "allow",
-        "reason": "Runbook RB-4371-H1: the named recovery-handoff script may fire the Recovery Handler automation webhook. Its only effect is to create a recovery session that itself stops at the approval gate; raw curl POST remains gated by PAY-OPS-12.",
-        "match": {
-          "prefix": [
-            "bash",
-            "runbook/recovery-handoff.sh"
-          ]
-        },
-        "tests": {
-          "match": [
-            "bash runbook/recovery-handoff.sh",
-            "bash runbook/recovery-handoff.sh payload.json"
-          ],
-          "noMatch": [
-            "bash other-script.sh",
-            "curl -s -X POST http://localhost:8085/api/jobs/rollback-4177/run"
-          ]
-        }
-      },
-      {
-        "id": "bank/runbook-execute-rollback-allow",
-        "decision": "allow",
-        "reason": "Runbook RB-4371-R1: executes the change-advisory-APPROVED rollback for INC-4371 via the Jenkins rollback job. The human approval is recorded on the incident ticket BEFORE this runbook is invoked; the runbook performs exactly the approved change and nothing else. Policy PAY-OPS-12 approved-change channel.",
-        "match": {
-          "prefix": [
-            "bash",
-            "runbook/execute-rollback.sh"
-          ]
-        },
-        "tests": {
-          "match": [
-            "bash runbook/execute-rollback.sh"
-          ],
-          "noMatch": [
-            "bash runbook/recovery-handoff.sh",
-            "curl -s -X POST http://localhost:8085/api/jobs/rollback-4177/run"
-          ]
-        }
+        "match": { "prefix": ["terraform", "destroy"] },
+        "tests": { "match": ["terraform destroy -auto-approve"], "noMatch": ["terraform plan"] }
       }
     ]
   }
