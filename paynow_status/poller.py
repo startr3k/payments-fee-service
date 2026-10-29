@@ -34,6 +34,8 @@ class StatusPoller:
                 status = self._client.get_status(
                     payment_ref, timeout=self._config.status_timeout_s)
             except GatewayTimeoutError:
+                log.warning("status check timed out", exc_info=True,
+                            extra={"payment_ref": payment_ref, "attempt": attempt})
                 if not self._budget.try_spend():
                     log.warning("retry budget exhausted; leaving payment pending",
                                 extra={"payment_ref": payment_ref, "attempt": attempt})
