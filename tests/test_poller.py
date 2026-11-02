@@ -3,7 +3,6 @@ import unittest
 from paynow_status.config import PollerConfig
 from paynow_status.gateway_client import GatewayTimeoutError
 from paynow_status.poller import UNKNOWN, StatusPoller
-from paynow_status.retry import RetryBudget
 
 
 class FakeClient:
@@ -19,8 +18,22 @@ class FakeClient:
         return r
 
 
-def poller(client, budget=None):
-    return StatusPoller(client, PollerConfig(), budget=budget, sleep=lambda s: None)
+class FakeClock:
+    """Advances by one poll interval per sleep, so deadlines are reached quickly."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+def poller(client, clock=None):
+    clock = clock or FakeClock()
+    return StatusPoller(client, PollerConfig(), sleep=clock.sleep, clock=clock)
 
 
 class StatusPollerTest(unittest.TestCase):
@@ -33,22 +46,15 @@ class StatusPollerTest(unittest.TestCase):
         result = poller(FakeClient(["RJCT"])).poll_until_final("PN1")
         self.assertEqual("RJCT", result.status)
 
-    def test_gives_up_after_max_attempts(self):
+    def test_gives_up_at_deadline(self):
         client = FakeClient(["PDNG"])
         result = poller(client).poll_until_final("PN1")
         self.assertEqual(UNKNOWN, result.status)
-        self.assertEqual(PollerConfig().max_attempts, client.calls)
+        self.assertEqual(120, client.calls)  # 30s deadline / 250ms interval
 
     def test_recovers_from_a_single_timeout(self):
         client = FakeClient([GatewayTimeoutError("slow"), "ACSC"])
         self.assertEqual("ACSC", poller(client).poll_until_final("PN1").status)
-
-    def test_stops_retrying_when_budget_is_spent(self):
-        client = FakeClient([GatewayTimeoutError("slow")])
-        budget = RetryBudget(ratio=0.0, min_tokens=1.0)
-        result = poller(client, budget).poll_until_final("PN1")
-        self.assertEqual(UNKNOWN, result.status)
-        self.assertEqual(2, client.calls)
 
 
 if __name__ == "__main__":
