@@ -18,6 +18,15 @@ mobile app → paynow-payment-service → fast-gateway → FAST network
        Kafka payments.notifications → notification-sender → push
 ```
 
+## Status codes
+
+| Code | Meaning | What the customer sees |
+|---|---|---|
+| `ACSC` | Settled at the beneficiary bank | "Transfer successful" |
+| `RJCT` | Rejected, with an ISO 20022 reason code | "Transfer failed" and the reason |
+| `PDNG` | Still in flight | "Processing" |
+| `UNKNOWN` | No final status in time | "Processing"; a push notification follows |
+
 ## Run the tests
 
 ```bash
