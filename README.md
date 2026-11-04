@@ -34,3 +34,8 @@ python3 -m unittest discover -s tests -t . -v
 ```
 
 No dependencies beyond the Python 3.10+ standard library.
+
+`tests/test_retry_policy_contract.py` pins the PS-5 retry policy: a timed-out
+status check is retried at most five times, each retry waits first with a
+jittered backoff that grows and is capped, and retries spend the retry budget.
+GitHub Actions runs the whole suite on every pull request, drafts included.
